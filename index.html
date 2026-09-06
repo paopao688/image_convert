@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,6 +11,7 @@
       padding: 0;
       box-sizing: border-box;
     }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: #0B0E1A;
@@ -20,6 +22,7 @@
       align-items: center;
       padding: 20px;
     }
+
     .container {
       max-width: 560px;
       width: 100%;
@@ -29,6 +32,7 @@
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
       border: 1px solid #2a2d42;
     }
+
     h1 {
       font-size: 24px;
       font-weight: 700;
@@ -37,6 +41,7 @@
       align-items: center;
       gap: 10px;
     }
+
     h1 span {
       background: #f59e0b;
       color: #0B0E1A;
@@ -45,11 +50,13 @@
       padding: 2px 12px;
       border-radius: 20px;
     }
+
     .sub {
       color: #8B949E;
       font-size: 14px;
       margin-bottom: 24px;
     }
+
     .drop-zone {
       border: 2px dashed #3b82f6;
       border-radius: 16px;
@@ -60,26 +67,32 @@
       background: #0f1222;
       margin-bottom: 20px;
     }
+
     .drop-zone:hover {
       border-color: #6C3CE1;
     }
+
     .drop-zone input[type="file"] {
       display: none;
     }
+
     .drop-zone .icon {
       font-size: 40px;
       margin-bottom: 8px;
     }
+
     .drop-zone .hint {
       color: #8B949E;
       font-size: 14px;
     }
+
     .row {
       display: flex;
       gap: 12px;
       margin-bottom: 16px;
       flex-wrap: wrap;
     }
+
     .row label {
       flex: 1;
       min-width: 100px;
@@ -87,6 +100,7 @@
       font-weight: 500;
       color: #9ca3af;
     }
+
     .row select {
       width: 100%;
       padding: 10px 12px;
@@ -98,9 +112,11 @@
       outline: none;
       margin-top: 4px;
     }
+
     .row select:focus {
       border-color: #6C3CE1;
     }
+
     .btn {
       width: 100%;
       padding: 14px;
@@ -114,23 +130,29 @@
       transition: opacity 0.2s, transform 0.1s;
       margin-top: 8px;
     }
+
     .btn:hover:not(:disabled) {
       opacity: 0.9;
     }
+
     .btn:active:not(:disabled) {
       transform: scale(0.98);
     }
+
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     .progress-wrap {
       margin-top: 16px;
       display: none;
     }
+
     .progress-wrap.show {
       display: block;
     }
+
     .progress-wrap progress {
       width: 100%;
       height: 8px;
@@ -139,14 +161,17 @@
       border: none;
       background: #2a2d42;
     }
+
     .progress-wrap progress::-webkit-progress-bar {
       background: #2a2d42;
       border-radius: 20px;
     }
+
     .progress-wrap progress::-webkit-progress-value {
       background: linear-gradient(90deg, #6C3CE1, #E83E8C);
       border-radius: 20px;
     }
+
     .progress-wrap .p-text {
       display: flex;
       justify-content: space-between;
@@ -154,14 +179,17 @@
       color: #9ca3af;
       margin-top: 4px;
     }
+
     #statusMsg {
       margin-top: 14px;
       font-size: 14px;
       min-height: 24px;
     }
+
     #outputArea {
       margin-top: 12px;
     }
+
     .download-link {
       display: inline-block;
       padding: 10px 20px;
@@ -173,10 +201,12 @@
       transition: background 0.2s;
       border: 1px solid #3b82f6;
     }
+
     .download-link:hover {
       background: #3b82f6;
       color: white;
     }
+
     .footer {
       margin-top: 20px;
       font-size: 12px;
@@ -185,10 +215,12 @@
       border-top: 1px solid #1f2235;
       padding-top: 16px;
     }
+
     .footer a {
       color: #6C3CE1;
       text-decoration: none;
     }
+
     .badge {
       display: inline-block;
       background: #22c55e20;
@@ -207,6 +239,7 @@
       margin: -6px 0 16px;
       flex-wrap: wrap;
     }
+
     .btn-ghost {
       display: inline-flex;
       align-items: center;
@@ -223,24 +256,29 @@
       user-select: none;
       white-space: nowrap;
     }
+
     .btn-ghost:hover {
       border-color: #6C3CE1;
       color: #fff;
       background: #161a30;
     }
+
     .btn-ghost:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     .btn-ghost input[type="file"] {
       display: none;
     }
+
     .queue-info {
       margin-left: auto;
       color: #9ca3af;
       font-size: 13px;
       font-variant-numeric: tabular-nums;
     }
+
     .avail-hint {
       font-size: 12px;
       color: #f59e0b;
@@ -260,6 +298,7 @@
       border-radius: 12px;
       flex-wrap: wrap;
     }
+
     .q-field {
       display: flex;
       align-items: center;
@@ -267,10 +306,12 @@
       font-size: 13px;
       color: #9ca3af;
     }
+
     .q-field label {
       font-weight: 500;
       white-space: nowrap;
     }
+
     .q-field output {
       min-width: 34px;
       text-align: right;
@@ -278,10 +319,12 @@
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
+
     input[type="range"] {
       accent-color: #6C3CE1;
       width: 170px;
     }
+
     select.mini {
       padding: 6px 10px;
       border-radius: 8px;
@@ -292,6 +335,7 @@
       outline: none;
       font-family: inherit;
     }
+
     select.mini:focus {
       border-color: #6C3CE1;
     }
@@ -307,18 +351,22 @@
       border-top: 1px solid #1f2235;
       padding-top: 14px;
     }
+
     .results-actions {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     .results-title .btn-ghost {
       padding: 6px 12px;
       font-size: 12px;
     }
+
     .results-count {
       color: #6b7280;
     }
+
     .result-item {
       display: flex;
       align-items: center;
@@ -332,6 +380,7 @@
       font-size: 13px;
       flex-wrap: wrap;
     }
+
     .result-item .result-name {
       color: #e5e7eb;
       word-break: break-all;
@@ -340,6 +389,7 @@
       gap: 8px;
       min-width: 0;
     }
+
     .result-item .file-badge {
       background: #3b82f620;
       color: #60a5fa;
@@ -349,13 +399,16 @@
       border-radius: 20px;
       white-space: nowrap;
     }
+
     .result-item .download-link {
       margin: 0;
       flex-shrink: 0;
     }
+
     .result-item.result-error {
       border-color: #ef444450;
     }
+
     .result-item.result-error .result-name {
       color: #f87171;
     }
@@ -364,6 +417,7 @@
     .pick-block {
       margin-bottom: 16px;
     }
+
     .source-pick-head {
       display: flex;
       justify-content: space-between;
@@ -371,15 +425,18 @@
       gap: 10px;
       flex-wrap: wrap;
     }
+
     .source-pick-title {
       font-size: 13px;
       font-weight: 500;
       color: #9ca3af;
     }
+
     .source-pick-actions {
       display: flex;
       gap: 4px;
     }
+
     .mini-link {
       background: none;
       border: none;
@@ -390,20 +447,24 @@
       padding: 2px 8px;
       border-radius: 6px;
     }
+
     .mini-link:hover {
       color: #fff;
       background: #2a2d42;
     }
+
     .mini-link:disabled {
       opacity: 0.4;
       cursor: not-allowed;
     }
+
     .chips {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 10px;
     }
+
     .chip {
       border: 1px solid #2a2d42;
       background: #0f1222;
@@ -417,19 +478,23 @@
       transition: 0.15s;
       line-height: 1.4;
     }
+
     .chip:hover:not(:disabled):not(.on) {
       color: #fff;
       border-color: #3b82f6;
     }
+
     .chip.on {
       background: linear-gradient(135deg, #6C3CE1, #E83E8C);
       color: #fff;
       border-color: transparent;
     }
+
     .chip:disabled {
       opacity: 0.45;
       cursor: not-allowed;
     }
+
     .pick-hint {
       font-size: 12px;
       color: #6b7280;
@@ -438,6 +503,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="container">
@@ -518,7 +584,8 @@
         </span>
       </div>
       <div id="srcChips" class="chips"></div>
-      <div class="pick-hint">默认随上方「从」格式；只有<b>能转换为当前「到」目标</b>的源格式可选（其余置灰）。切换「到」会自动刷新并剔除失效勾选。例：目标 WebP 时，勾选 JPG + PNG，则只收 .jpg / .png 文件转成 WebP。</div>
+      <div class="pick-hint">默认随上方「从」格式；只有<b>能转换为当前「到」目标</b>的源格式可选（其余置灰）。切换「到」会自动刷新并剔除失效勾选。例：目标 WebP 时，勾选 JPG + PNG，则只收
+        .jpg / .png 文件转成 WebP。</div>
     </div>
 
     <!-- 可用性提示：带 ⚠ 的格式当前不可用（引擎需联网/资源缺失），自动置灰不可选 -->
@@ -567,10 +634,34 @@
 
     <div class="footer">
       <span class="badge">🔒 100% 本地</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="200" height="44" viewBox="0 0 200 44">
+        <!-- 灰色背景 -->
+        <rect width="200" height="44" rx="6" ry="6" fill="#21262D" />
+
+        <!-- 左侧小图标（取自原 logo） -->
+        <rect x="12" y="10" width="24" height="24" rx="6" ry="6" fill="#f59e0b" />
+        <text x="24" y="27" dominant-baseline="middle" text-anchor="middle" fill="#ffffff"
+          font-family="Arial, sans-serif" font-weight="bold" font-size="18">
+          P
+        </text>
+
+        <!-- 文字 -->
+        <text x="100" y="27"
+          font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+          font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+          PaoPao688
+        </text>
+
+        <!-- 点击跳转 -->
+        <a href="https://main.5923511.xyz" target="_blank">
+          <rect width="200" height="44" rx="6" ry="6" fill="transparent" />
+        </a>
+      </svg>
       &nbsp; 基于 <a href="https://github.com/hushvert/engine" target="_blank">@hushvert/engine</a>
     </div>
   </div>
 
   <script type="module" src="./src/main.ts"></script>
 </body>
+
 </html>
