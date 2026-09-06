@@ -30,7 +30,8 @@ function copyModule(src, dest) {
 
 // FFmpeg
 copyModule('@ffmpeg/core/dist/esm/ffmpeg-core.js', 'ffmpeg/ffmpeg-core.js')
-copyModule('@ffmpeg/core/dist/esm/ffmpeg-core.wasm', 'ffmpeg/ffmpeg-core.wasm')
+// ❌ 注释掉 wasm，从 CDN 加载
+// copyModule('@ffmpeg/core/dist/esm/ffmpeg-core.wasm', 'ffmpeg/ffmpeg-core.wasm')
 copyModule('@ffmpeg/ffmpeg/dist/esm/worker.js', 'ffmpeg/worker.js')
 
 // libarchive
