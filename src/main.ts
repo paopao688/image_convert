@@ -1,17 +1,29 @@
 import { configureEngine, convertFile } from '@hushvert/engine'
 
-// 配置引擎（图片格式无需配置，只有音视频/归档/PDF需要）
+// ============================================================
+// 配置引擎 - 使用 CDN 加载（绕过 Cloudflare Pages 25MB 限制）
+// ============================================================
+
+// 定义 CDN 基础路径（使用 jsdelivr）
+// 你可以根据需要切换版本
+const CDN_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+
 configureEngine({
   ffmpeg: {
-    coreUrl: '/vendor/ffmpeg/ffmpeg-core.js',
-    wasmUrl: '/vendor/ffmpeg/ffmpeg-core.wasm',
-    classWorkerUrl: '/vendor/ffmpeg/worker.js',
+    // 从 CDN 加载
+    coreUrl: `${CDN_BASE}/ffmpeg-core.js`,
+    wasmUrl: `${CDN_BASE}/ffmpeg-core.wasm`,
+    classWorkerUrl: 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/worker.js',
   },
-  libarchiveWorkerUrl: '/vendor/libarchive/worker-bundle.js',
-  pdfjsWorkerUrl: '/vendor/pdfjs/pdf.worker.min.mjs',
+  // libarchive 从 CDN 加载
+  libarchiveWorkerUrl: 'https://cdn.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
+  // PDF.js 从 CDN 加载
+  pdfjsWorkerUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs',
 })
 
-// DOM 元素
+// ============================================================
+// DOM 元素（保持不变）
+// ============================================================
 const fileInput = document.getElementById('fileInput') as HTMLInputElement
 const fromFormat = document.getElementById('fromFormat') as HTMLSelectElement
 const toFormat = document.getElementById('toFormat') as HTMLSelectElement
@@ -21,7 +33,9 @@ const progressText = document.getElementById('progressText') as HTMLSpanElement
 const outputArea = document.getElementById('outputArea') as HTMLDivElement
 const statusMsg = document.getElementById('statusMsg') as HTMLDivElement
 
-// 格式映射：根据 from 动态更新 to 选项
+// ============================================================
+// 格式映射（保持不变）
+// ============================================================
 const formatPairs: Record<string, string[]> = {
   'heic': ['jpg', 'png', 'webp', 'avif'],
   'png': ['jpg', 'webp', 'avif', 'jxl', 'ico'],
@@ -52,7 +66,6 @@ const formatPairs: Record<string, string[]> = {
   'svg': ['png', 'jpg', 'pdf'],
 }
 
-// 格式 → 模块映射
 const formatModule: Record<string, string> = {
   'heic': 'images',
   'png': 'images',
@@ -86,7 +99,9 @@ const formatModule: Record<string, string> = {
   'xlsx': 'data',
 }
 
-// 更新目标格式下拉框
+// ============================================================
+// 更新目标格式（保持不变）
+// ============================================================
 function updateToFormats() {
   const from = fromFormat.value
   const tos = formatPairs[from] || []
@@ -97,7 +112,9 @@ function updateToFormats() {
 fromFormat.addEventListener('change', updateToFormats)
 updateToFormats()
 
+// ============================================================
 // 转换按钮点击
+// ============================================================
 convertBtn.addEventListener('click', async () => {
   const file = fileInput.files?.[0]
   if (!file) {
@@ -114,7 +131,6 @@ convertBtn.addEventListener('click', async () => {
     return
   }
 
-  // 禁用按钮，显示进度
   convertBtn.disabled = true
   convertBtn.textContent = '转换中...'
   progressBar.value = 0
@@ -137,7 +153,6 @@ convertBtn.addEventListener('click', async () => {
       }
     )
 
-    // 生成下载链接
     const url = URL.createObjectURL(result)
     const a = document.createElement('a')
     a.href = url
@@ -156,7 +171,9 @@ convertBtn.addEventListener('click', async () => {
   }
 })
 
-// 拖拽上传支持
+// ============================================================
+// 拖拽上传支持（保持不变）
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   const dropZone = document.querySelector('.drop-zone') as HTMLDivElement
   if (!dropZone) return
