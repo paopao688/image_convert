@@ -12,14 +12,33 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    // 关键：禁用代码拆分
     rollupOptions: {
       output: {
         format: 'es',
-        inlineDynamicImports: true
-      }
-    },
-    // 增加 chunk 大小限制
-    chunkSizeWarningLimit: 2000
+        // 关键：允许 Worker 使用不同的输出格式
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        chunkFileNames: 'chunks/[name]-[hash].js',
+        entryFileNames: 'entries/[name]-[hash].js'
+      },
+      // 为 Worker 单独配置
+      plugins: [
+        {
+          name: 'worker-format-fix',
+          resolveId(id) {
+            if (id.includes('@hushvert/engine') && id.includes('worker')) {
+              return id
+            }
+          },
+          load(id) {
+            if (id.includes('@hushvert/engine') && id.includes('worker')) {
+              return null // 使用默认加载
+            }
+          }
+        }
+      ]
+    }
+  },
+  worker: {
+    format: 'iife' // 为 Worker 保留 IIFE 格式
   }
 })
