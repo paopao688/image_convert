@@ -562,23 +562,50 @@ function syncSourcesToFrom() {
 }
 
 // ============================================================
-// 「包含源格式」多选标签
+// 「包含源格式」多选标签：只有能转换为当前【到】的源格式可选
 // ============================================================
+// 某源格式能否转换为指定目标
+function canConvertTo(source: string, to: string): boolean {
+  return (formatPairs[source] || []).includes(to)
+}
+
+// 标签可选条件：引擎可用 且 能转换为当前「到」目标
+function sourceEnabled(value: string): boolean {
+  return canConvertTo(value, toFormat.value) && moduleReady(formatModule[value]) !== false
+}
+
+// 「到」变化 / 引擎可用性变化后刷新：剔除失效勾选、重绘、更新 accept
+function updateSourceConstraints() {
+  for (const v of Array.from(selectedSources)) {
+    if (!sourceEnabled(v)) selectedSources.delete(v)
+  }
+  renderSourceChips()
+  updateAccept()
+}
+
 function renderSourceChips() {
   if (!srcChipsEl) return
   srcChipsEl.innerHTML = ''
+  const target = toFormat.value.toUpperCase()
   for (const o of Array.from(fromFormat.options)) {
     const value = o.value
-    const ready = moduleReady(formatModule[value])
     const base = FROM_LABELS[value] || (o.textContent || '').trim()
+    const engineReadyBool = moduleReady(formatModule[value]) !== false
+    const convertible = canConvertTo(value, toFormat.value)
+    const enabled = engineReadyBool && convertible
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'chip'
     if (selectedSources.has(value)) btn.classList.add('on')
-    if (!ready) btn.disabled = true
-    btn.textContent = ready ? base : `${base} ⚠`
-    btn.title = ready ? `上传时包含 ${base} 源文件` : `${base} 的转换引擎暂不可用`
+    btn.disabled = !enabled
+    btn.textContent = engineReadyBool ? base : `${base} ⚠`
+    btn.title = !engineReadyBool
+      ? `${base} 的转换引擎暂不可用`
+      : !convertible
+        ? `${base} 无法转换为 ${target}`
+        : `上传时包含 ${base} 源文件（→ ${target}）`
     btn.addEventListener('click', () => {
+      if (!enabled) return
       sourceTouched = true
       if (selectedSources.has(value)) selectedSources.delete(value)
       else selectedSources.add(value)
@@ -593,7 +620,7 @@ function collectAllSources() {
   sourceTouched = true
   selectedSources.clear()
   for (const o of Array.from(fromFormat.options)) {
-    if (moduleReady(formatModule[o.value]) !== false) selectedSources.add(o.value)
+    if (sourceEnabled(o.value)) selectedSources.add(o.value)
   }
   renderSourceChips()
   updateAccept()
@@ -630,7 +657,7 @@ function applyFormatAvailability() {
     }
     statusMsg.textContent = '⚠️ 当前所有格式均不可用（请检查网络后刷新）'
   }
-  renderSourceChips() // 同步标签可用 / 禁用与勾选态
+  updateSourceConstraints() // 同步标签可用 / 禁用与勾选态，并剔除失效勾选
   const hint = document.getElementById('availHint') as HTMLDivElement | null
   if (hint) hint.hidden = !anyDisabled
 }
@@ -658,7 +685,10 @@ fromFormat.addEventListener('change', () => {
   syncSourcesToFrom() // 未手动定制则让「包含源格式」跟随单选
   updateToFormats()
 })
-toFormat.addEventListener('change', refreshQualityUI)
+toFormat.addEventListener('change', () => {
+  refreshQualityUI()
+  updateSourceConstraints() // 切换「到」→ 刷新哪些源格式可选并剔除失效勾选
+})
 updateToFormats()
 bootAvailability()
 
@@ -765,7 +795,7 @@ convertBtn.addEventListener('click', async () => {
     updateQueueUI() // 恢复按钮文案 / 队列显示
     statusMsg.textContent =
       failed === 0
-        ? `✅ 全部转换完成：${done} 个文件（结果在上方，逐个点击下载）`
+        ? `✅ 全部转换完成：${done} 个文件（结果在下方，逐个点击下载或打包下载）`
         : `⚠️ 完成 ${done} 个，失败 ${failed} 个`
     progressText.textContent = '100%'
   }
