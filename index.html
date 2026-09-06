@@ -301,6 +301,15 @@
       border-top: 1px solid #1f2235;
       padding-top: 14px;
     }
+    .results-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .results-title .btn-ghost {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
     .results-count {
       color: #6b7280;
     }
@@ -445,7 +454,10 @@
     <div id="statusMsg"></div>
     <div id="resultsTitle" class="results-title" style="display:none">
       <span>📦 转换结果</span>
-      <span id="resultsCount" class="results-count"></span>
+      <span class="results-actions">
+        <button type="button" id="downloadAllBtn" class="btn-ghost" hidden>⬇️ 下载全部 (ZIP)</button>
+        <span id="resultsCount" class="results-count"></span>
+      </span>
     </div>
     <div id="outputArea"></div>
 

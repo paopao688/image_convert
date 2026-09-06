@@ -1,4 +1,4 @@
-import { configureEngine, convertFile, type ConvertOptions } from '@hushvert/engine'
+import { buildZip, configureEngine, convertFile, type ConvertOptions } from '@hushvert/engine'
 
 // ============================================================
 // 配置引擎 - 从 CDN 加载重型 wasm（绕过 Cloudflare Pages 25MB 限制）
@@ -61,7 +61,7 @@ const CDN_PROVIDERS: CdnProvider[] = [
 ]
 
 // HEAD 探测某个资源是否可达（超时视为不可用）
-async function probe(url: string, timeoutMs = 3000): Promise<boolean> {
+async function probe(url: string, timeoutMs = 2500): Promise<boolean> {
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), timeoutMs)
@@ -73,18 +73,29 @@ async function probe(url: string, timeoutMs = 3000): Promise<boolean> {
   }
 }
 
-// 并行探测所有源，返回第一个可用的（全部失败则用默认 jsdelivr）
+// 并行探测所有源，返回第一个可用的（不等其它源超时）；全部失败则用默认 jsdelivr
 async function resolveBestCdn(): Promise<CdnProvider> {
-  const results = await Promise.all(
-    CDN_PROVIDERS.map(async (p) => ({ p, ok: await probe(p.urls.ffmpegCore) })),
-  )
-  const hit = results.find((r) => r.ok)
-  if (!hit) {
-    console.warn('[hushvert] 所有 CDN 源探测失败，回退默认 jsdelivr（依赖网络的格式可能加载失败）')
-    return CDN_PROVIDERS[0]!
-  }
-  console.info(`[hushvert] 引擎资源将使用 CDN 源：${hit.p.name}`)
-  return hit.p
+  return new Promise((resolve) => {
+    let settled = false
+    let pending = CDN_PROVIDERS.length
+    for (const p of CDN_PROVIDERS) {
+      probe(p.urls.ffmpegCore).then((ok) => {
+        if (settled) return
+        if (ok) {
+          settled = true
+          console.info(`[hushvert] 引擎资源将使用 CDN 源：${p.name}`)
+          resolve(p)
+          return
+        }
+        pending--
+        if (pending === 0) {
+          settled = true
+          console.warn('[hushvert] 所有 CDN 源探测失败，回退默认 jsdelivr（依赖网络的格式可能加载失败）')
+          resolve(CDN_PROVIDERS[0]!)
+        }
+      })
+    }
+  })
 }
 
 // 引擎初始化在探测完成后进行；转换开始前会 await engineReady
@@ -307,10 +318,13 @@ const queueInfo = document.getElementById('queueInfo') as HTMLSpanElement
 const progressWrap = document.getElementById('progressWrap') as HTMLDivElement
 const resultsTitle = document.getElementById('resultsTitle') as HTMLDivElement
 const resultsCount = document.getElementById('resultsCount') as HTMLSpanElement
+const downloadAllBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement
 
 let queue: QueueItem[] = []
 const queueKeySet = new Set<string>()
 let converting = false
+// 本次会话转换成功的所有结果（供「下载全部」打包）
+let results: { name: string; blob: Blob }[] = []
 
 function updateQueueUI() {
   const n = queue.length
@@ -322,10 +336,61 @@ function updateQueueUI() {
 }
 
 function updateResultsCount() {
-  const rows = outputArea.children.length
-  resultsTitle.style.display = rows > 0 ? 'flex' : 'none'
-  resultsCount.textContent = rows > 0 ? `${rows} 个文件` : ''
+  const totalRows = outputArea.children.length
+  const failRows = outputArea.querySelectorAll('.result-error').length
+  const ok = results.length
+  resultsTitle.style.display = totalRows > 0 ? 'flex' : 'none'
+  downloadAllBtn.hidden = ok === 0
+  if (totalRows > 0) {
+    if (ok > 0) {
+      resultsCount.textContent = failRows > 0 ? `${ok} 成功 · ${failRows} 失败` : `${ok} 个文件`
+    } else {
+      resultsCount.textContent = `全部失败（${failRows}）`
+    }
+  } else {
+    resultsCount.textContent = ''
+  }
 }
+
+// 打包时避免同名文件冲突：a.webp、a(1).webp、a(2).webp…
+function dedupeNames(names: string[]): string[] {
+  const seen = new Map<string, number>()
+  return names.map((name) => {
+    const count = seen.get(name) || 0
+    seen.set(name, count + 1)
+    if (count === 0) return name
+    const dot = name.lastIndexOf('.')
+    if (dot <= 0) return `${name}(${count})`
+    return `${name.slice(0, dot)}(${count})${name.slice(dot)}`
+  })
+}
+
+// 「下载全部」：把成功结果打包成一个 zip
+downloadAllBtn.addEventListener('click', async () => {
+  if (results.length === 0) return
+  downloadAllBtn.disabled = true
+  const originalText = downloadAllBtn.textContent || ''
+  downloadAllBtn.textContent = '⏳ 打包中…'
+  statusMsg.textContent = `⏳ 正在打包 ${results.length} 个文件…`
+  try {
+    const names = dedupeNames(results.map((r) => r.name))
+    const blob = await buildZip(results.map((r, i) => ({ name: names[i]!, blob: r.blob })))
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `converted-${results.length}个文件.zip`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+    statusMsg.textContent = `✅ 已打包 ${results.length} 个文件（${formatSize(blob.size)}），请查看浏览器下载`
+  } catch (err: any) {
+    console.error('打包失败:', err)
+    statusMsg.textContent = `❌ 打包失败：${err?.message || err}`
+  } finally {
+    downloadAllBtn.disabled = false
+    downloadAllBtn.textContent = originalText
+  }
+})
 
 // 解析某输入格式当前应使用的输出目标：优先当前「到」下拉框，
 // 若该输入不支持此目标（如 PNG 输入无法输出 PNG），回退到它的第一个可用目标
@@ -419,6 +484,7 @@ function appendResult(item: QueueItem, to: string, blob: Blob) {
   row.appendChild(name)
   row.appendChild(a)
   outputArea.appendChild(row)
+  results.push({ name: outputFileName(item, to), blob })
   updateResultsCount()
 }
 
@@ -481,6 +547,7 @@ convertBtn.addEventListener('click', async () => {
   updateQueueUI() // 队列已取出，同步清空队列显示
   converting = true
   convertBtn.disabled = true
+  results = []
   outputArea.innerHTML = ''
   updateResultsCount()
   progressWrap.classList.add('show')
@@ -564,6 +631,7 @@ clearQueueBtn.addEventListener('click', () => {
   queueKeySet.clear()
   converting = false
   convertBtn.disabled = false
+  results = []
   queueInfo.textContent = ''
   convertBtn.textContent = '🔄 开始转换'
   progressWrap.classList.remove('show')
