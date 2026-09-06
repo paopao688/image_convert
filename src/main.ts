@@ -306,6 +306,21 @@ const resultsTitle = document.getElementById('resultsTitle') as HTMLDivElement
 const resultsCount = document.getElementById('resultsCount') as HTMLSpanElement
 const downloadAllBtn = document.getElementById('downloadAllBtn') as HTMLButtonElement
 
+// ============================================================
+// 「包含源格式」多选标签：文件夹 / 点选 / 拖拽只收勾选的源格式
+// 默认随「从」单选；用户手动多选后即保持自定义（sourceTouched）
+// ============================================================
+const srcChipsEl = document.getElementById('srcChips') as HTMLDivElement
+const srcAllBtn = document.getElementById('srcAllBtn') as HTMLButtonElement
+const srcClearBtn = document.getElementById('srcClearBtn') as HTMLButtonElement
+// 面板标签的静态显示名（在运行时给 option 追加 ⚠ 前抓取，保证干净）
+const FROM_LABELS: Record<string, string> = {}
+for (const o of Array.from(fromFormat.options)) {
+  FROM_LABELS[o.value] = (o.textContent || '').trim()
+}
+const selectedSources = new Set<string>([fromFormat.value])
+let sourceTouched = false
+
 let queue: QueueItem[] = []
 const queueKeySet = new Set<string>()
 let converting = false
@@ -402,15 +417,25 @@ function addFiles(fileList: FileList | null) {
     return
   }
   if (!fileList || fileList.length === 0) return
+  if (selectedSources.size === 0) {
+    statusMsg.textContent = '⚠️ 请先在「包含源格式」中至少勾选一种格式'
+    return
+  }
 
   let added = 0
   let skipped = 0
+  let outside = 0
   let dup = 0
   let unavail = 0
   for (const file of Array.from(fileList)) {
     const from = detectFormat(file.name)
     if (!from || !formatModule[from] || !formatPairs[from]) {
       skipped++
+      continue
+    }
+    if (!selectedSources.has(from)) {
+      // 不属于勾选的「包含源格式」→ 跳过
+      outside++
       continue
     }
     if (!moduleReady(formatModule[from])) {
@@ -431,12 +456,14 @@ function addFiles(fileList: FileList | null) {
   updateQueueUI()
   if (added > 0) {
     const extra: string[] = []
+    if (outside > 0) extra.push(`${outside} 个不在勾选源格式`)
     if (dup > 0) extra.push(`${dup} 个重复`)
     if (skipped > 0) extra.push(`${skipped} 个不支持`)
     if (unavail > 0) extra.push(`${unavail} 个需联网引擎`)
     statusMsg.textContent = `✅ 已加入队列 ${added} 个文件` + (extra.length ? `（${extra.join('，')}）` : '')
-  } else if (skipped > 0 || dup > 0 || unavail > 0) {
+  } else if (outside > 0 || skipped > 0 || dup > 0 || unavail > 0) {
     const parts: string[] = []
+    if (outside > 0) parts.push(`${outside} 个不在勾选源格式`)
     if (unavail > 0) parts.push(`${unavail} 个需要联网引擎，暂不可用`)
     if (skipped > 0) parts.push(`${skipped} 个不支持格式`)
     if (dup > 0) parts.push(`${dup} 个内容重复`)
@@ -508,19 +535,79 @@ function appendError(item: QueueItem, err: any) {
 // 更新目标格式 / 文件选择器过滤（只允许选中的输入格式）
 // ============================================================
 function updateAccept() {
-  const exts = FORMAT_EXTS[fromFormat.value] || []
-  fileInput.accept = exts.map(e => '.' + e).join(',')
+  // 文件选择器 accept = 所有勾选「包含源格式」的扩展名；未勾选则交给 addFiles 把关
+  const exts = new Set<string>()
+  for (const v of selectedSources) {
+    for (const e of FORMAT_EXTS[v] || []) exts.add(e)
+  }
+  fileInput.accept = Array.from(exts).map((e) => '.' + e).join(',')
 }
 
 function updateToFormats() {
   const from = fromFormat.value
   const tos = formatPairs[from] || []
-  toFormat.innerHTML = tos.map(f => `<option value="${f}">${f.toUpperCase()}</option>`).join('')
+  toFormat.innerHTML = tos.map((f) => `<option value="${f}">${f.toUpperCase()}</option>`).join('')
   if (tos.length > 0) toFormat.value = tos[0]
   updateAccept()
   refreshQualityUI()
   applyFormatAvailability() // 依据引擎资源可用性置灰「从」下拉的不可用格式
 }
+
+// 未手动定制「包含源格式」时，让它跟随「从」单选（默认行为）
+function syncSourcesToFrom() {
+  if (sourceTouched) return
+  selectedSources.clear()
+  selectedSources.add(fromFormat.value)
+  renderSourceChips()
+}
+
+// ============================================================
+// 「包含源格式」多选标签
+// ============================================================
+function renderSourceChips() {
+  if (!srcChipsEl) return
+  srcChipsEl.innerHTML = ''
+  for (const o of Array.from(fromFormat.options)) {
+    const value = o.value
+    const ready = moduleReady(formatModule[value])
+    const base = FROM_LABELS[value] || (o.textContent || '').trim()
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'chip'
+    if (selectedSources.has(value)) btn.classList.add('on')
+    if (!ready) btn.disabled = true
+    btn.textContent = ready ? base : `${base} ⚠`
+    btn.title = ready ? `上传时包含 ${base} 源文件` : `${base} 的转换引擎暂不可用`
+    btn.addEventListener('click', () => {
+      sourceTouched = true
+      if (selectedSources.has(value)) selectedSources.delete(value)
+      else selectedSources.add(value)
+      renderSourceChips()
+      updateAccept()
+    })
+    srcChipsEl.appendChild(btn)
+  }
+}
+
+function collectAllSources() {
+  sourceTouched = true
+  selectedSources.clear()
+  for (const o of Array.from(fromFormat.options)) {
+    if (moduleReady(formatModule[o.value]) !== false) selectedSources.add(o.value)
+  }
+  renderSourceChips()
+  updateAccept()
+}
+
+function clearSelectedSources() {
+  sourceTouched = true
+  selectedSources.clear()
+  renderSourceChips()
+  updateAccept()
+}
+
+srcAllBtn.addEventListener('click', collectAllSources)
+srcClearBtn.addEventListener('click', clearSelectedSources)
 
 // 「从」下拉：保留所有格式但把当前引擎不可用的置灰并加 ⚠，不可选中
 function applyFormatAvailability() {
@@ -537,11 +624,13 @@ function applyFormatAvailability() {
     const first = Array.from(fromFormat.options).find((o) => !o.disabled)
     if (first) {
       fromFormat.value = first.value
+      syncSourcesToFrom()
       updateToFormats()
       return
     }
     statusMsg.textContent = '⚠️ 当前所有格式均不可用（请检查网络后刷新）'
   }
+  renderSourceChips() // 同步标签可用 / 禁用与勾选态
   const hint = document.getElementById('availHint') as HTMLDivElement | null
   if (hint) hint.hidden = !anyDisabled
 }
@@ -566,6 +655,7 @@ async function bootAvailability() {
 }
 
 fromFormat.addEventListener('change', () => {
+  syncSourcesToFrom() // 未手动定制则让「包含源格式」跟随单选
   updateToFormats()
 })
 toFormat.addEventListener('change', refreshQualityUI)

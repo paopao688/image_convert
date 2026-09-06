@@ -359,6 +359,83 @@
     .result-item.result-error .result-name {
       color: #f87171;
     }
+
+    /* ---------- 包含源格式（多选标签） ---------- */
+    .pick-block {
+      margin-bottom: 16px;
+    }
+    .source-pick-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .source-pick-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #9ca3af;
+    }
+    .source-pick-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .mini-link {
+      background: none;
+      border: none;
+      color: #60a5fa;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .mini-link:hover {
+      color: #fff;
+      background: #2a2d42;
+    }
+    .mini-link:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .chip {
+      border: 1px solid #2a2d42;
+      background: #0f1222;
+      color: #9ca3af;
+      border-radius: 999px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      user-select: none;
+      transition: 0.15s;
+      line-height: 1.4;
+    }
+    .chip:hover:not(:disabled):not(.on) {
+      color: #fff;
+      border-color: #3b82f6;
+    }
+    .chip.on {
+      background: linear-gradient(135deg, #6C3CE1, #E83E8C);
+      color: #fff;
+      border-color: transparent;
+    }
+    .chip:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .pick-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -426,6 +503,22 @@
           <option value="webp">WebP</option>
         </select>
       </label>
+    </div>
+
+    <!-- 包含源格式：上传文件夹 / 点选 / 拖拽只收勾选的源格式；默认随「从」单选 -->
+    <div class="pick-block">
+      <div class="source-pick-head">
+        <span class="source-pick-title">
+          包含源格式
+          <span style="opacity:0.7">（上传 / 拖拽只收这些，可多选）</span>
+        </span>
+        <span class="source-pick-actions">
+          <button type="button" class="mini-link" id="srcAllBtn">全选</button>
+          <button type="button" class="mini-link" id="srcClearBtn">清空</button>
+        </span>
+      </div>
+      <div id="srcChips" class="chips"></div>
+      <div class="pick-hint">默认随上方「从」格式；点标签可多选。例如：勾选 JPG + PNG、目标选 WebP，则文件夹/拖拽只会收 .jpg 和 .png 文件转成 WebP。</div>
     </div>
 
     <!-- 可用性提示：带 ⚠ 的格式当前不可用（引擎需联网/资源缺失），自动置灰不可选 -->
