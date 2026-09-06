@@ -198,6 +198,152 @@
       border-radius: 20px;
       border: 1px solid #22c55e40;
     }
+
+    /* ---------- 批量 / 文件夹 / 队列 ---------- */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: -6px 0 16px;
+      flex-wrap: wrap;
+    }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px dashed #3b82f6;
+      color: #60a5fa;
+      background: #0f1222;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: 0.15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .btn-ghost:hover {
+      border-color: #6C3CE1;
+      color: #fff;
+      background: #161a30;
+    }
+    .btn-ghost:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-ghost input[type="file"] {
+      display: none;
+    }
+    .queue-info {
+      margin-left: auto;
+      color: #9ca3af;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- 输出质量 / 音频比特率 ---------- */
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      background: #0f1222;
+      border: 1px solid #2a2d42;
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+    .q-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .q-field label {
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .q-field output {
+      min-width: 34px;
+      text-align: right;
+      color: #e5e7eb;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    input[type="range"] {
+      accent-color: #6C3CE1;
+      width: 170px;
+    }
+    select.mini {
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #0f1222;
+      color: #e5e7eb;
+      border: 1px solid #2a2d42;
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+    select.mini:focus {
+      border-color: #6C3CE1;
+    }
+
+    /* ---------- 结果列表 ---------- */
+    .results-title {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #1f2235;
+      padding-top: 14px;
+    }
+    .results-count {
+      color: #6b7280;
+    }
+    .result-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #0f1222;
+      border: 1px solid #2a2d42;
+      border-radius: 10px;
+      margin-top: 8px;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+    .result-item .result-name {
+      color: #e5e7eb;
+      word-break: break-all;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .result-item .file-badge {
+      background: #3b82f620;
+      color: #60a5fa;
+      border: 1px solid #3b82f640;
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .result-item .download-link {
+      margin: 0;
+      flex-shrink: 0;
+    }
+    .result-item.result-error {
+      border-color: #ef444450;
+    }
+    .result-item.result-error .result-name {
+      color: #f87171;
+    }
   </style>
 </head>
 <body>
@@ -211,8 +357,18 @@
 
     <div class="drop-zone" id="dropZone">
       <div class="icon">📂</div>
-      <div class="hint">点击选择文件，或拖拽到这里</div>
-      <input type="file" id="fileInput" />
+      <div class="hint">点击选择文件，或拖拽到这里（可一次选择多个）</div>
+      <div class="hint" style="margin-top:6px;font-size:12px;opacity:.75">批量转换整个文件夹请使用下方「📁 上传文件夹」</div>
+      <input type="file" id="fileInput" multiple />
+    </div>
+
+    <div class="action-bar">
+      <label class="btn-ghost">
+        <input type="file" id="folderInput" webkitdirectory multiple />
+        <span>📁 上传文件夹</span>
+      </label>
+      <button type="button" class="btn-ghost" id="clearQueueBtn">🗑 清空</button>
+      <span id="queueInfo" class="queue-info"></span>
     </div>
 
     <div class="row">
@@ -257,7 +413,26 @@
       </label>
     </div>
 
-    <button class="btn" id="convertBtn">🔄 转换</button>
+    <!-- 输出质量设置（按目标格式动态显示） -->
+    <div id="qualityWrap" class="option-row" style="display:none">
+      <span class="q-field" id="imgQualityField">
+        <label for="qualityRange">输出质量</label>
+        <input type="range" id="qualityRange" min="1" max="100" value="90" />
+        <output id="qualityValue">90</output>
+      </span>
+      <span class="q-field" id="audioBitrateField" style="display:none">
+        <label for="bitrateSelect">MP3 比特率</label>
+        <select id="bitrateSelect" class="mini">
+          <option value="96">96 kbps</option>
+          <option value="128">128 kbps</option>
+          <option value="192" selected>192 kbps</option>
+          <option value="256">256 kbps</option>
+          <option value="320">320 kbps</option>
+        </select>
+      </span>
+    </div>
+
+    <button class="btn" id="convertBtn">🔄 开始转换</button>
 
     <div class="progress-wrap" id="progressWrap">
       <progress id="progressBar" value="0" max="100"></progress>
@@ -268,6 +443,10 @@
     </div>
 
     <div id="statusMsg"></div>
+    <div id="resultsTitle" class="results-title" style="display:none">
+      <span>📦 转换结果</span>
+      <span id="resultsCount" class="results-count"></span>
+    </div>
     <div id="outputArea"></div>
 
     <div class="footer">
