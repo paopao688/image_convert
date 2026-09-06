@@ -28,11 +28,13 @@ function copyModule(src, dest) {
   }
 }
 
-// FFmpeg
+// FFmpeg：worker/core 必须同源；worker.js 还相对导入 const.js/errors.js
 copyModule('@ffmpeg/core/dist/esm/ffmpeg-core.js', 'ffmpeg/ffmpeg-core.js')
-// ❌ 注释掉 wasm，从 CDN 加载
+// ❌ wasm（约 30MB）不从 node_modules 复制，仍走 CDN 拉取
 // copyModule('@ffmpeg/core/dist/esm/ffmpeg-core.wasm', 'ffmpeg/ffmpeg-core.wasm')
 copyModule('@ffmpeg/ffmpeg/dist/esm/worker.js', 'ffmpeg/worker.js')
+copyModule('@ffmpeg/ffmpeg/dist/esm/const.js', 'ffmpeg/const.js')
+copyModule('@ffmpeg/ffmpeg/dist/esm/errors.js', 'ffmpeg/errors.js')
 
 // libarchive
 copyModule('libarchive.js/dist/worker-bundle.js', 'libarchive/worker-bundle.js')

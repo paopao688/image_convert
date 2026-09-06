@@ -241,6 +241,12 @@
       font-size: 13px;
       font-variant-numeric: tabular-nums;
     }
+    .avail-hint {
+      font-size: 12px;
+      color: #f59e0b;
+      margin: -4px 0 12px;
+      line-height: 1.5;
+    }
 
     /* ---------- 输出质量 / 音频比特率 ---------- */
     .option-row {
@@ -420,6 +426,11 @@
           <option value="webp">WebP</option>
         </select>
       </label>
+    </div>
+
+    <!-- 可用性提示：带 ⚠ 的格式当前不可用（引擎需联网/资源缺失），自动置灰不可选 -->
+    <div id="availHint" class="avail-hint" hidden>
+      ⚠ 标注 ⚠ 的格式需要联网加载转换引擎，当前检测不到，暂不可选。
     </div>
 
     <!-- 输出质量设置（按目标格式动态显示） -->

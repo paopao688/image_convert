@@ -1,63 +1,35 @@
 import { buildZip, configureEngine, convertFile, type ConvertOptions } from '@hushvert/engine'
 
 // ============================================================
-// 配置引擎 - 从 CDN 加载重型 wasm（绕过 Cloudflare Pages 25MB 限制）
-// 启动时自动探测多个 CDN 源：jsdelivr 不可用时回退到镜像 / unpkg
+// 配置引擎 - 重型 wasm 资源的加载策略
+//  · ffmpeg（音/视频）：
+//    - worker.js + core.js：由 @ffmpeg/ffmpeg 以 module Worker 加载，
+//      Chromium 禁止跨域构造 Worker（即使 CDN 返回 CORS 头也报
+//      SecurityError）→ 必须本地同源 vendor/，与 libarchive/pdfjs 同理。
+//    - ffmpeg-core.wasm（约 30MB）不适合随站点打包 → 仍走 CDN。
+//      它在 worker 内以普通 fetch 拉取，跨域 CORS 没问题。
+//  · libarchive（7z/tar/…）：classic Worker 不允许跨域 → 本地同源 vendor/。
+//  · pdfjs（PDF 渲染 worker）：本地同源 vendor/。
+//  所有本地 vendor 由 scripts/copy-vendor.js 复制到部署根目录 /vendor/；
+//  dev 环境由 vite.config.ts 的 vendor 插件映射到相同路径。
 // ============================================================
-const FFMPEG_VER = '0.12.10'
+const FFMPEG_VER = '0.12.10' // @ffmpeg/core 版本，决定 CDN wasm 路径
+const VENDOR_FFMPEG_WORKER = '/vendor/ffmpeg/worker.js'
+const VENDOR_FFMPEG_CORE = '/vendor/ffmpeg/ffmpeg-core.js'
+const VENDOR_LIBARCHIVE = '/vendor/libarchive/worker-bundle.js'
+const VENDOR_PDFJS = '/vendor/pdfjs/pdf.worker.min.mjs'
 
+// ffmpeg-core.wasm 的 CDN 备选源（仅 wasm 走 CDN）
 interface CdnProvider {
   name: string
-  urls: {
-    ffmpegCore: string
-    ffmpegWasm: string
-    ffmpegWorker: string
-    libarchive: string
-    pdfjs: string
-  }
+  wasmUrl: string
 }
 
 const CDN_PROVIDERS: CdnProvider[] = [
-  {
-    name: 'jsdelivr',
-    urls: {
-      ffmpegCore: `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.js`,
-      ffmpegWasm: `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.wasm`,
-      ffmpegWorker: `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VER}/dist/umd/worker.js`,
-      libarchive: 'https://cdn.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
-      pdfjs: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs',
-    },
-  },
-  {
-    name: 'jsdelivr-fastly',
-    urls: {
-      ffmpegCore: `https://fastly.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.js`,
-      ffmpegWasm: `https://fastly.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.wasm`,
-      ffmpegWorker: `https://fastly.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VER}/dist/umd/worker.js`,
-      libarchive: 'https://fastly.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
-      pdfjs: 'https://fastly.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs',
-    },
-  },
-  {
-    name: 'jsdelivr-gcore',
-    urls: {
-      ffmpegCore: `https://gcore.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.js`,
-      ffmpegWasm: `https://gcore.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.wasm`,
-      ffmpegWorker: `https://gcore.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VER}/dist/umd/worker.js`,
-      libarchive: 'https://gcore.jsdelivr.net/npm/libarchive.js@2.0.2/dist/worker-bundle.js',
-      pdfjs: 'https://gcore.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs',
-    },
-  },
-  {
-    name: 'unpkg',
-    urls: {
-      ffmpegCore: `https://unpkg.com/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.js`,
-      ffmpegWasm: `https://unpkg.com/@ffmpeg/core@${FFMPEG_VER}/dist/umd/ffmpeg-core.wasm`,
-      ffmpegWorker: `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VER}/dist/umd/worker.js`,
-      libarchive: 'https://unpkg.com/libarchive.js@2.0.2/dist/worker-bundle.js',
-      pdfjs: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.mjs',
-    },
-  },
+  { name: 'jsdelivr', wasmUrl: `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/esm/ffmpeg-core.wasm` },
+  { name: 'jsdelivr-fastly', wasmUrl: `https://fastly.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/esm/ffmpeg-core.wasm` },
+  { name: 'jsdelivr-gcore', wasmUrl: `https://gcore.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_VER}/dist/esm/ffmpeg-core.wasm` },
+  { name: 'unpkg', wasmUrl: `https://unpkg.com/@ffmpeg/core@${FFMPEG_VER}/dist/esm/ffmpeg-core.wasm` },
 ]
 
 // HEAD 探测某个资源是否可达（超时视为不可用）
@@ -73,24 +45,29 @@ async function probe(url: string, timeoutMs = 2500): Promise<boolean> {
   }
 }
 
+// 记录是否有可用的 ffmpeg wasm CDN 源（决定 audio-video 模块是否可用）
+let cdnReachable = false
+
 // 并行探测所有源，返回第一个可用的（不等其它源超时）；全部失败则用默认 jsdelivr
 async function resolveBestCdn(): Promise<CdnProvider> {
   return new Promise((resolve) => {
     let settled = false
     let pending = CDN_PROVIDERS.length
     for (const p of CDN_PROVIDERS) {
-      probe(p.urls.ffmpegCore).then((ok) => {
+      probe(p.wasmUrl).then((ok) => {
         if (settled) return
         if (ok) {
           settled = true
-          console.info(`[hushvert] 引擎资源将使用 CDN 源：${p.name}`)
+          cdnReachable = true
+          console.info(`[hushvert] ffmpeg-core.wasm 将使用 CDN 源：${p.name}`)
           resolve(p)
           return
         }
         pending--
         if (pending === 0) {
           settled = true
-          console.warn('[hushvert] 所有 CDN 源探测失败，回退默认 jsdelivr（依赖网络的格式可能加载失败）')
+          cdnReachable = false
+          console.warn('[hushvert] 所有 ffmpeg wasm CDN 源探测失败：音/视频转换将不可用（格式已标灰提示）')
           resolve(CDN_PROVIDERS[0]!)
         }
       })
@@ -103,16 +80,25 @@ const engineReady = (async () => {
   const cdn = await resolveBestCdn()
   configureEngine({
     ffmpeg: {
-      coreUrl: cdn.urls.ffmpegCore,
-      wasmUrl: cdn.urls.ffmpegWasm,
-      classWorkerUrl: cdn.urls.ffmpegWorker,
+      // worker/core 必须同源（Chromium 禁止跨域 Worker），本地 vendor 托管；
+      // 仅 30MB 的 wasm 从 CDN 拉取
+      coreUrl: VENDOR_FFMPEG_CORE,
+      wasmUrl: cdn.wasmUrl,
+      classWorkerUrl: VENDOR_FFMPEG_WORKER,
     },
-    libarchiveWorkerUrl: cdn.urls.libarchive,
-    pdfjsWorkerUrl: cdn.urls.pdfjs,
+    libarchiveWorkerUrl: VENDOR_LIBARCHIVE,
+    pdfjsWorkerUrl: VENDOR_PDFJS,
   })
 })().catch((err) => {
   console.error('[hushvert] 引擎初始化失败', err)
 })
+
+// 各模块引擎资源可用性（undefined = 尚未探测，暂按可用处理，避免首帧误置灰）
+const assetReady: Record<string, boolean | undefined> = {}
+function moduleReady(moduleName: string | undefined): boolean {
+  if (!moduleName) return false
+  return assetReady[moduleName] !== false
+}
 
 // ============================================================
 // DOM 元素（保持不变）
@@ -401,6 +387,14 @@ function resolveTarget(from: string): string {
   return tos[0] || ''
 }
 
+// 某些输出目标由「独立模块」实现，不能沿用输入格式的模块：
+//  · 输出 ico -> 使用 ico 模块（ico module 会用 canvas 解码光栅图并打包多尺寸 favicon）
+// 其余沿用 formatModule[from]
+function moduleFor(from: string, to: string): string {
+  if (to === 'ico') return 'ico'
+  return formatModule[from] || ''
+}
+
 // 把一批文件加入队列（拖拽可能混合多种格式，因此逐个按扩展名识别）
 function addFiles(fileList: FileList | null) {
   if (converting) {
@@ -412,10 +406,16 @@ function addFiles(fileList: FileList | null) {
   let added = 0
   let skipped = 0
   let dup = 0
+  let unavail = 0
   for (const file of Array.from(fileList)) {
     const from = detectFormat(file.name)
     if (!from || !formatModule[from] || !formatPairs[from]) {
       skipped++
+      continue
+    }
+    if (!moduleReady(formatModule[from])) {
+      // 该格式的引擎资源当前不可用（如 ffmpeg CDN 连不上 / 本地 vendor 缺失）
+      unavail++
       continue
     }
     const key = `${file.name}|${file.size}|${file.lastModified}`
@@ -433,9 +433,14 @@ function addFiles(fileList: FileList | null) {
     const extra: string[] = []
     if (dup > 0) extra.push(`${dup} 个重复`)
     if (skipped > 0) extra.push(`${skipped} 个不支持`)
+    if (unavail > 0) extra.push(`${unavail} 个需联网引擎`)
     statusMsg.textContent = `✅ 已加入队列 ${added} 个文件` + (extra.length ? `（${extra.join('，')}）` : '')
-  } else if (skipped > 0 || dup > 0) {
-    statusMsg.textContent = `⚠️ 没有新增文件（${skipped > 0 ? '含不支持格式 ' : ''}${dup > 0 ? '内容重复' : ''}）`
+  } else if (skipped > 0 || dup > 0 || unavail > 0) {
+    const parts: string[] = []
+    if (unavail > 0) parts.push(`${unavail} 个需要联网引擎，暂不可用`)
+    if (skipped > 0) parts.push(`${skipped} 个不支持格式`)
+    if (dup > 0) parts.push(`${dup} 个内容重复`)
+    statusMsg.textContent = `⚠️ 没有新增文件（${parts.join('，')}）`
   }
 }
 
@@ -514,6 +519,50 @@ function updateToFormats() {
   if (tos.length > 0) toFormat.value = tos[0]
   updateAccept()
   refreshQualityUI()
+  applyFormatAvailability() // 依据引擎资源可用性置灰「从」下拉的不可用格式
+}
+
+// 「从」下拉：保留所有格式但把当前引擎不可用的置灰并加 ⚠，不可选中
+function applyFormatAvailability() {
+  let anyDisabled = false
+  for (const opt of Array.from(fromFormat.options)) {
+    const ready = moduleReady(formatModule[opt.value])
+    const base = (opt.textContent || '').replace(/\s*⚠$/, '')
+    opt.disabled = !ready
+    opt.textContent = ready ? base : `${base} ⚠`
+    if (!ready) anyDisabled = true
+  }
+  // 若当前选中的格式引擎不可用，自动切到第一个可用项
+  if (moduleReady(formatModule[fromFormat.value]) === false) {
+    const first = Array.from(fromFormat.options).find((o) => !o.disabled)
+    if (first) {
+      fromFormat.value = first.value
+      updateToFormats()
+      return
+    }
+    statusMsg.textContent = '⚠️ 当前所有格式均不可用（请检查网络后刷新）'
+  }
+  const hint = document.getElementById('availHint') as HTMLDivElement | null
+  if (hint) hint.hidden = !anyDisabled
+}
+
+// 探测各模块引擎资源，决定哪些格式可用：
+//  libarchive(7z/tar)、pdfjs(pdf 渲染)、ffmpeg(audio-video) 之外均为本地引擎，始终可用
+async function bootAvailability() {
+  try {
+    await engineReady
+    const [la, pj] = await Promise.all([
+      probe(VENDOR_LIBARCHIVE).catch(() => false),
+      probe(VENDOR_PDFJS).catch(() => false),
+    ])
+    assetReady['archives'] = la
+    assetReady['pdf-render'] = pj
+    assetReady['audio-video'] = cdnReachable
+    console.info(`[hushvert] 可用性探测 → libarchive:${la} pdfjs:${pj} ffmpegCDN:${cdnReachable}`)
+    updateToFormats() // 重新应用置灰状态
+  } catch (err) {
+    console.error('[hushvert] 可用性探测失败', err)
+  }
 }
 
 fromFormat.addEventListener('change', () => {
@@ -521,6 +570,7 @@ fromFormat.addEventListener('change', () => {
 })
 toFormat.addEventListener('change', refreshQualityUI)
 updateToFormats()
+bootAvailability()
 
 // ============================================================
 // 队列串行转换
@@ -563,7 +613,16 @@ convertBtn.addEventListener('click', async () => {
       const item = items[i]!
       // 输出目标 = 点转换那一刻选择的目标格式（不再沿用加入队列时的旧格式）
       const to = resolveTarget(item.from)
-      const moduleName = formatModule[item.from]
+      const moduleName = moduleFor(item.from, to)
+
+      // 引擎不可用（如该格式需要联网的 ffmpeg 但 CDN 连不上）→ 快速失败，不要空转
+      if (!moduleReady(moduleName)) {
+        failed++
+        appendError(item, new Error('该格式的转换引擎当前不可用（需联网或缺少本地 vendor 资源）'))
+        progressBar.value = ((i + 1) / total) * 100
+        continue
+      }
+
       convertBtn.textContent = `⏳ 转换中 ${i + 1}/${total}`
       statusMsg.textContent = `🔄 [${i + 1}/${total}] 正在转换 ${item.file.name} → ${to.toUpperCase()}`
 
