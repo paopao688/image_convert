@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build.js && npm run copy:vendor",
+    "build": "vite build && npm run copy:vendor",
     "preview": "vite preview",
     "copy:vendor": "node scripts/copy-vendor.js"
   },

@@ -67,6 +67,12 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@hushvert/engine']
   },
+  // @hushvert/engine 的 module worker（images/pdf/docx-preview）是
+  // new Worker(new URL(...), {type:'module'})，内部还有动态导入需 code-split，
+  // 因此 worker 必须输出 ESM（默认 iife 无法拆分 → 构建报错）。
+  worker: {
+    format: 'es'
+  },
   // 引擎刻意使用单线程 ffmpeg，不需要 COOP/COEP；不设置以免阻碍跨域 CDN 资源
   build: {
     target: 'es2020',
