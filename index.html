@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hushvert 转换器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0B0E1A;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 560px;
+      width: 100%;
+      background: #1a1d2e;
+      border-radius: 24px;
+      padding: 32px 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      border: 1px solid #2a2d42;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 span {
+      background: #f59e0b;
+      color: #0B0E1A;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 2px 12px;
+      border-radius: 20px;
+    }
+    .sub {
+      color: #8B949E;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .drop-zone {
+      border: 2px dashed #3b82f6;
+      border-radius: 16px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      background: #0f1222;
+      margin-bottom: 20px;
+    }
+    .drop-zone:hover {
+      border-color: #6C3CE1;
+    }
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+    .drop-zone .icon {
+      font-size: 40px;
+      margin-bottom: 8px;
+    }
+    .drop-zone .hint {
+      color: #8B949E;
+      font-size: 14px;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .row label {
+      flex: 1;
+      min-width: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #9ca3af;
+    }
+    .row select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #0f1222;
+      color: #e5e7eb;
+      border: 1px solid #2a2d42;
+      font-size: 14px;
+      outline: none;
+      margin-top: 4px;
+    }
+    .row select:focus {
+      border-color: #6C3CE1;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6C3CE1, #E83E8C);
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .btn:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .progress-wrap {
+      margin-top: 16px;
+      display: none;
+    }
+    .progress-wrap.show {
+      display: block;
+    }
+    .progress-wrap progress {
+      width: 100%;
+      height: 8px;
+      border-radius: 20px;
+      overflow: hidden;
+      border: none;
+      background: #2a2d42;
+    }
+    .progress-wrap progress::-webkit-progress-bar {
+      background: #2a2d42;
+      border-radius: 20px;
+    }
+    .progress-wrap progress::-webkit-progress-value {
+      background: linear-gradient(90deg, #6C3CE1, #E83E8C);
+      border-radius: 20px;
+    }
+    .progress-wrap .p-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    #statusMsg {
+      margin-top: 14px;
+      font-size: 14px;
+      min-height: 24px;
+    }
+    #outputArea {
+      margin-top: 12px;
+    }
+    .download-link {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #2a2d42;
+      border-radius: 10px;
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.2s;
+      border: 1px solid #3b82f6;
+    }
+    .download-link:hover {
+      background: #3b82f6;
+      color: white;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #4b5563;
+      text-align: center;
+      border-top: 1px solid #1f2235;
+      padding-top: 16px;
+    }
+    .footer a {
+      color: #6C3CE1;
+      text-decoration: none;
+    }
+    .badge {
+      display: inline-block;
+      background: #22c55e20;
+      color: #22c55e;
+      font-size: 12px;
+      padding: 2px 12px;
+      border-radius: 20px;
+      border: 1px solid #22c55e40;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>
+      🔄 转换器
+      <span>私有</span>
+    </h1>
+    <p class="sub">文件在浏览器本地转换，<strong style="color:#22c55e;">永不离开</strong>你的设备</p>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">📂</div>
+      <div class="hint">点击选择文件，或拖拽到这里</div>
+      <input type="file" id="fileInput" />
+    </div>
+
+    <div class="row">
+      <label>
+        从
+        <select id="fromFormat">
+          <option value="heic">HEIC</option>
+          <option value="png">PNG</option>
+          <option value="jpg" selected>JPG</option>
+          <option value="webp">WebP</option>
+          <option value="avif">AVIF</option>
+          <option value="jxl">JPEG XL</option>
+          <option value="bmp">BMP</option>
+          <option value="tiff">TIFF</option>
+          <option value="svg">SVG</option>
+          <option value="mp3">MP3</option>
+          <option value="wav">WAV</option>
+          <option value="m4a">M4A</option>
+          <option value="flac">FLAC</option>
+          <option value="ogg">OGG</option>
+          <option value="mp4">MP4</option>
+          <option value="mov">MOV</option>
+          <option value="avi">AVI</option>
+          <option value="mkv">MKV</option>
+          <option value="7z">7Z</option>
+          <option value="tar">TAR</option>
+          <option value="pdf">PDF</option>
+          <option value="docx">DOCX</option>
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+          <option value="yaml">YAML</option>
+          <option value="xlsx">XLSX</option>
+        </select>
+      </label>
+      <label>
+        到
+        <select id="toFormat">
+          <option value="jpg">JPG</option>
+          <option value="png">PNG</option>
+          <option value="webp">WebP</option>
+        </select>
+      </label>
+    </div>
+
+    <button class="btn" id="convertBtn">🔄 转换</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <progress id="progressBar" value="0" max="100"></progress>
+      <div class="p-text">
+        <span>进度</span>
+        <span id="progressText">0%</span>
+      </div>
+    </div>
+
+    <div id="statusMsg"></div>
+    <div id="outputArea"></div>
+
+    <div class="footer">
+      <span class="badge">🔒 100% 本地</span>
+      &nbsp; 基于 <a href="https://github.com/hushvert/engine" target="_blank">@hushvert/engine</a>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

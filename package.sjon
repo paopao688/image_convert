@@ -1,0 +1,18 @@
+{
+  "name": "hushvert-converter",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && npm run copy:vendor",
+    "preview": "vite preview",
+    "copy:vendor": "node scripts/copy-vendor.js"
+  },
+  "dependencies": {
+    "@hushvert/engine": "^0.2.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.4.10"
+  }
+}
